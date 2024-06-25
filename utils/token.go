@@ -10,38 +10,40 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func GenerateToken(methodEncrypt *jwt.SigningMethodECDSA, _privateKey string, tokenData jwt.MapClaims) (token string, err error) {
-	privateKey, err := DecodePrivateECDSA(_privateKey)
+func GenerateToken(methodEncrypt *jwt.SigningMethodECDSA, privateKeyPEM string, tokenData jwt.MapClaims) (token string, err error) {
+	privateKey, err := DecodePrivateECDSA(privateKeyPEM)
 	if err != nil {
-		return
+		return "", fmt.Errorf("failed to decode private key: %v", err)
 	}
 
 	tokenGen := jwt.NewWithClaims(methodEncrypt, tokenData)
 	token, err = tokenGen.SignedString(privateKey)
 	if err != nil {
-		return
+		return "", fmt.Errorf("failed to generate token: %v", err)
 	}
-	return
+	return token, nil
 }
 
-func ValidateToken(token string, pemEncodedPub string) (valid bool, claims jwt.MapClaims, err error) {
+func ValidateToken(token string, publicKeyPEM string) (valid bool, claims jwt.MapClaims, err error) {
 	if token == "" {
 		return false, claims, errors.New("empty token")
 	}
+
 	tkn, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if jwt.SigningMethodES256 != token.Method {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		pubKey, err := DecodePublicECDSA(pemEncodedPub)
+		pubKey, err := DecodePublicECDSA(publicKeyPEM)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode public key: %v", err)
 		}
 		return pubKey, nil
 	})
 	if err != nil {
-		return
+		return false, claims, fmt.Errorf("failed to parse token: %v", err)
 	}
+
 	if claims, ok := tkn.Claims.(jwt.MapClaims); ok && tkn.Valid {
 		var exp int64
 		switch e := claims["exp"].(type) {

@@ -3,18 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-
 	"generate-keys/utils"
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	privateKey, publicKey, err := utils.GenerateECDSAKeyPair()
 	if err != nil {
-		log.Error(err)
+		logrus.Error("failed to generate ECDSA key pair:", err)
 		return
 	}
 	fmt.Println("Private key:", privateKey)
@@ -27,18 +26,22 @@ func main() {
 	}
 	token, err := utils.GenerateToken(jwt.SigningMethodES256, privateKey, tokenData)
 	if err != nil {
-		log.Error(err)
+		logrus.Error("failed to generate JWT token:", err)
 		return
 	}
 	fmt.Println("JWT Token:", token)
 
 	valid, claims, err := utils.ValidateToken(token, publicKey)
 	if err != nil {
-		log.Error(err)
+		logrus.Error("failed to validate JWT token:", err)
 		return
 	}
 	fmt.Println("Token valid:", valid)
 
-	b, _ := json.Marshal(claims)
-	fmt.Println("Token claims:", string(b))
+	claimsJSON, err := json.Marshal(claims)
+	if err != nil {
+		logrus.Error("failed to marshal claims to JSON:", err)
+		return
+	}
+	fmt.Println("Token claims:", string(claimsJSON))
 }
